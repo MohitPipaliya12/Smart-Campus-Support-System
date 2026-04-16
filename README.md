@@ -93,6 +93,18 @@ DEFAULT_STAFF_PASSWORD=admin123
 
 Creates a default admin user on server start.
 
+### 🔄 Admin Profile
+
+![Admin Profile](./screenshots/admin_profile.png)
+
+### 🔄 Give Importance
+
+![Give Importance](./screenshots/give_importance.png)
+
+### 🔄 Update Claim Status
+
+![Update Claim Status](./screenshots/update_claim_status.png)
+
 ---
 
 ## 👥 Roles & Authentication
