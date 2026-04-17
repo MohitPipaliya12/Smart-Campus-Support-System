@@ -27,6 +27,13 @@ angular.module('campusHelpdesk', ['ngRoute'])
       setSuccess: setSuccess,
     };
   })
+  .factory('ApiResponse', function () {
+    function unwrap(resp) {
+      if (!resp || !resp.data) return {};
+      return resp.data.data !== undefined ? resp.data.data : resp.data;
+    }
+    return { unwrap: unwrap };
+  })
   .config(function ($routeProvider) {
     $routeProvider
       .when('/login', {
@@ -75,6 +82,12 @@ angular.module('campusHelpdesk', ['ngRoute'])
         templateUrl: 'views/profile.html',
         controller: 'ProfileController',
         controllerAs: 'profile',
+        requireAuth: true,
+      })
+      .when('/admin-dashboard', {
+        templateUrl: 'views/admin-dashboard.html',
+        controller: 'AdminDashboardController',
+        controllerAs: 'adminDash',
         requireAuth: true,
       })
       .otherwise({
@@ -209,7 +222,7 @@ angular.module('campusHelpdesk', ['ngRoute'])
       return decoded && decoded.role;
     };
   })
-  .controller('AuthController', function ($scope, $rootScope, $location, Api, TokenService, UiFeedback) {
+  .controller('AuthController', function ($scope, $rootScope, $location, Api, ApiResponse, TokenService, UiFeedback) {
     var self = this;
     self.form = { email: '', password: '', name: '', phone: '', department: '', year: null, hostel: '', bio: '' };
 
@@ -224,8 +237,9 @@ angular.module('campusHelpdesk', ['ngRoute'])
         email: self.form.email,
         password: self.form.password,
       }).then(function (resp) {
-        if (resp.data && resp.data.token) {
-          TokenService.setToken(resp.data.token);
+        var data = ApiResponse.unwrap(resp);
+        if (data && data.token) {
+          TokenService.setToken(data.token);
           $rootScope.$broadcast('auth:login');
         }
         UiFeedback.setSuccess('Login successful.');
@@ -255,7 +269,7 @@ angular.module('campusHelpdesk', ['ngRoute'])
       });
     };
   })
-  .controller('DashboardController', function ($scope, Api, TokenService, JwtService, $q, UiFeedback) {
+  .controller('DashboardController', function ($scope, Api, ApiResponse, TokenService, JwtService, $q, UiFeedback) {
     var dash = this;
     dash.myComplaintsCount = 0;
     dash.myLostCount = 0;
@@ -266,22 +280,27 @@ angular.module('campusHelpdesk', ['ngRoute'])
     dash.recentFoundItems = [];
     dash.recentClaims = [];
     dash.isStaff = false;
+    dash.loading = false;
+    dash.complaintSummary = { total: 0, pending: 0, resolved: 0 };
 
     function loadCounts() {
+      dash.loading = true;
       var decoded = JwtService.decode(TokenService.getToken());
       var myId = decoded && decoded.sub ? decoded.sub : null;
       dash.isStaff = decoded && ['staff', 'admin'].includes(decoded.role);
 
       return $q.all([
         Api.get('/complaints'),
+        Api.get('/complaints/summary'),
         Api.get('/lost-items?status=active'),
         Api.get('/found-items?status=active'),
         Api.get('/claims'),
       ]).then(function (responses) {
-        var complaints = responses[0].data && responses[0].data.complaints ? responses[0].data.complaints : [];
-        var lost = responses[1].data && responses[1].data.lostItems ? responses[1].data.lostItems : [];
-        var found = responses[2].data && responses[2].data.foundItems ? responses[2].data.foundItems : [];
-        var claims = responses[3].data && responses[3].data.claims ? responses[3].data.claims : [];
+        var complaints = (ApiResponse.unwrap(responses[0]).complaints) || [];
+        dash.complaintSummary = ApiResponse.unwrap(responses[1]) || dash.complaintSummary;
+        var lost = (ApiResponse.unwrap(responses[2]).lostItems) || [];
+        var found = (ApiResponse.unwrap(responses[3]).foundItems) || [];
+        var claims = (ApiResponse.unwrap(responses[4]).claims) || [];
 
         dash.myComplaintsCount = myId ? complaints.filter(function (x) { return x.createdBy && x.createdBy._id === myId; }).length : 0;
         dash.myLostCount = myId ? lost.filter(function (x) { return x.createdBy && x.createdBy._id === myId; }).length : lost.length;
@@ -294,23 +313,33 @@ angular.module('campusHelpdesk', ['ngRoute'])
         dash.recentClaims = claims.slice(0, 3);
       }).catch(function (err) {
         UiFeedback.setError(err && err.data && err.data.error ? err.data.error.message : 'Failed to load dashboard');
+      }).finally(function () {
+        dash.loading = false;
       });
     }
 
     dash.load = loadCounts;
     dash.load();
   })
-  .controller('ComplaintsController', function ($scope, Api, TokenService, JwtService, UiFeedback) {
+  .controller('ComplaintsController', function ($scope, Api, ApiResponse, TokenService, JwtService, UiFeedback) {
     var self = this;
     self.items = [];
     self.userId = null;
     self.isAdmin = false;
+    self.isStaff = false;
     self.sortBy = 'date';
     self.minSupports = 0;
+    self.loading = false;
+    self.statusFilter = '';
+    self.categoryFilter = '';
+    self.searchText = '';
+    self.summary = { total: 0, pending: 0, resolved: 0 };
 
     var decoded = JwtService.decode(TokenService.getToken());
     self.userId = decoded && decoded.sub ? decoded.sub : null;
     self.isAdmin = decoded && decoded.role === 'admin';
+    self.isStaff = decoded && ['staff', 'admin'].includes(decoded.role);
+    self.canCreate = decoded && decoded.role === 'student';
 
     self.form = { title: '', description: '', category: 'maintenance', location: '' };
 
@@ -326,19 +355,53 @@ angular.module('campusHelpdesk', ['ngRoute'])
     };
 
     self.load = function () {
-      self.items = [];
+      self.loading = true;
       var qs = '?sortBy=' + encodeURIComponent(self.sortBy) + '&order=desc';
       if (self.minSupports !== null && self.minSupports !== undefined && String(self.minSupports).length) {
         qs += '&minSupports=' + encodeURIComponent(self.minSupports);
       }
+      if (self.statusFilter) qs += '&status=' + encodeURIComponent(self.statusFilter);
+      if (self.categoryFilter) qs += '&category=' + encodeURIComponent(self.categoryFilter);
+      if (self.searchText) qs += '&q=' + encodeURIComponent(self.searchText);
       Api.get('/complaints' + qs).then(function (resp) {
-        self.items = resp.data.complaints || [];
+        self.items = (ApiResponse.unwrap(resp).complaints) || [];
         self.items.forEach(function (c) {
           c.editImportanceLevel = (c.importanceLevel !== undefined && c.importanceLevel !== null) ? String(c.importanceLevel) : '0';
+          c.editNextStatus = c.status;
         });
       }).catch(function (err) {
         var msg = err && err.data && err.data.error && err.data.error.message ? err.data.error.message : 'Failed to load complaints';
         UiFeedback.setError(msg);
+      }).finally(function () {
+        self.loading = false;
+      });
+    };
+
+    self.assignToMe = function (c) {
+      if (!c || !c._id) return;
+      Api.put('/complaints/' + c._id + '/assign', {}).then(function () {
+        UiFeedback.setSuccess('Assigned.');
+        self.load();
+        self.loadSummary();
+      }).catch(function (err) {
+        UiFeedback.setError(err && err.data && err.data.error ? err.data.error.message : 'Failed to assign complaint');
+      });
+    };
+
+    self.setStatus = function (c) {
+      if (!c || !c._id) return;
+      Api.put('/complaints/' + c._id + '/status', { status: c.editNextStatus }).then(function () {
+        UiFeedback.setSuccess('Status updated.');
+        self.load();
+        self.loadSummary();
+      }).catch(function (err) {
+        UiFeedback.setError(err && err.data && err.data.error ? err.data.error.message : 'Failed to update status');
+      });
+    };
+
+    self.loadSummary = function () {
+      Api.get('/complaints/summary').then(function (resp) {
+        self.summary = ApiResponse.unwrap(resp) || self.summary;
       });
     };
 
@@ -347,6 +410,7 @@ angular.module('campusHelpdesk', ['ngRoute'])
       Api.post('/complaints', self.form).then(function () {
         self.form = { title: '', description: '', category: 'maintenance', location: '' };
         self.load();
+        self.loadSummary();
         UiFeedback.setSuccess('Complaint submitted successfully.');
       }).catch(function (err) {
         var msg = err && err.data && err.data.error && err.data.error.message ? err.data.error.message : 'Failed to submit';
@@ -360,7 +424,6 @@ angular.module('campusHelpdesk', ['ngRoute'])
           c._editing = !c._editing;
           c.editTitle = c.title;
           c.editDescription = c.description;
-          c.editStatus = c.status;
         } else {
           c._editing = false;
         }
@@ -374,12 +437,12 @@ angular.module('campusHelpdesk', ['ngRoute'])
       var payload = {
         title: target.editTitle,
         description: target.editDescription,
-        status: target.editStatus,
       };
 
       Api.put('/complaints/' + id, payload).then(function () {
         target._editing = false;
         self.load();
+        self.loadSummary();
         UiFeedback.setSuccess('Complaint updated successfully.');
       }).catch(function (err) {
         var msg = err && err.data && err.data.error && err.data.error.message ? err.data.error.message : 'Failed to update complaint';
@@ -391,6 +454,7 @@ angular.module('campusHelpdesk', ['ngRoute'])
       if (!confirm('Delete this complaint?')) return;
       Api.delete('/complaints/' + id).then(function () {
         self.load();
+        self.loadSummary();
         UiFeedback.setSuccess('Complaint deleted.');
       }).catch(function (err) {
         var msg = err && err.data && err.data.error && err.data.error.message ? err.data.error.message : 'Failed to delete complaint';
@@ -401,7 +465,7 @@ angular.module('campusHelpdesk', ['ngRoute'])
     self.support = function (c) {
       if (!c || !c._id) return;
       Api.post('/complaints/' + c._id + '/support', {}).then(function (resp) {
-        var updated = resp.data && resp.data.complaint ? resp.data.complaint : null;
+        var updated = ApiResponse.unwrap(resp) && ApiResponse.unwrap(resp).complaint ? ApiResponse.unwrap(resp).complaint : null;
         if (updated) {
           c.supportedByMe = true;
           c.supportsCount = updated.supportsCount;
@@ -414,7 +478,7 @@ angular.module('campusHelpdesk', ['ngRoute'])
     self.unsupport = function (c) {
       if (!c || !c._id) return;
       Api.delete('/complaints/' + c._id + '/support').then(function (resp) {
-        var updated = resp.data && resp.data.complaint ? resp.data.complaint : null;
+        var updated = ApiResponse.unwrap(resp) && ApiResponse.unwrap(resp).complaint ? ApiResponse.unwrap(resp).complaint : null;
         if (updated) {
           c.supportedByMe = false;
           c.supportsCount = updated.supportsCount;
@@ -428,6 +492,7 @@ angular.module('campusHelpdesk', ['ngRoute'])
       if (!c || !c._id) return;
       Api.put('/complaints/' + c._id + '/importance', { importanceLevel: Number(c.editImportanceLevel) }).then(function () {
         self.load();
+        self.loadSummary();
         UiFeedback.setSuccess('Importance updated.');
       }).catch(function (err) {
         UiFeedback.setError(err && err.data && err.data.error ? err.data.error.message : 'Failed to set importance');
@@ -435,8 +500,9 @@ angular.module('campusHelpdesk', ['ngRoute'])
     };
 
     self.load();
+    self.loadSummary();
   })
-  .controller('LostItemsController', function ($scope, Api, TokenService, JwtService, $location, UiFeedback) {
+  .controller('LostItemsController', function ($scope, Api, ApiResponse, TokenService, JwtService, $location, UiFeedback) {
     var self = this;
     self.items = [];
     self.isStaff = false;
@@ -460,7 +526,7 @@ angular.module('campusHelpdesk', ['ngRoute'])
 
     self.load = function () {
       Api.get('/lost-items?status=' + encodeURIComponent(self.statusFilter)).then(function (resp) {
-        self.items = resp.data.lostItems || [];
+        self.items = (ApiResponse.unwrap(resp).lostItems) || [];
       }).catch(function (err) {
         UiFeedback.setError(err && err.data && err.data.error ? err.data.error.message : 'Failed to load lost items');
       });
@@ -554,7 +620,7 @@ angular.module('campusHelpdesk', ['ngRoute'])
 
     self.load();
   })
-  .controller('FoundItemsController', function ($scope, Api, TokenService, JwtService, $location, UiFeedback) {
+  .controller('FoundItemsController', function ($scope, Api, ApiResponse, TokenService, JwtService, $location, UiFeedback) {
     var self = this;
     self.items = [];
     self.isStaff = false;
@@ -578,7 +644,7 @@ angular.module('campusHelpdesk', ['ngRoute'])
 
     self.load = function () {
       Api.get('/found-items?status=' + encodeURIComponent(self.statusFilter)).then(function (resp) {
-        self.items = resp.data.foundItems || [];
+        self.items = (ApiResponse.unwrap(resp).foundItems) || [];
       }).catch(function (err) {
         UiFeedback.setError(err && err.data && err.data.error ? err.data.error.message : 'Failed to load found items');
       });
@@ -671,7 +737,7 @@ angular.module('campusHelpdesk', ['ngRoute'])
 
     self.load();
   })
-  .controller('ClaimsController', function ($scope, $rootScope, Api, TokenService, JwtService, UiFeedback) {
+  .controller('ClaimsController', function ($scope, $rootScope, Api, ApiResponse, TokenService, JwtService, UiFeedback) {
     var self = this;
 
     self.items = [];
@@ -688,14 +754,14 @@ angular.module('campusHelpdesk', ['ngRoute'])
     function loadActiveItems() {
       if (self.form.type === 'lost') {
         return Api.get('/lost-items?status=active').then(function (resp) {
-          self.activeItems = resp.data.lostItems || [];
+          self.activeItems = (ApiResponse.unwrap(resp).lostItems) || [];
           if (!self.form.itemId && self.activeItems.length) self.form.itemId = self.activeItems[0]._id;
         }).catch(function (err) {
           UiFeedback.setError(err && err.data && err.data.error ? err.data.error.message : 'Failed to load active lost items');
         });
       }
       return Api.get('/found-items?status=active').then(function (resp) {
-        self.activeItems = resp.data.foundItems || [];
+        self.activeItems = (ApiResponse.unwrap(resp).foundItems) || [];
         if (!self.form.itemId && self.activeItems.length) self.form.itemId = self.activeItems[0]._id;
       }).catch(function (err) {
         UiFeedback.setError(err && err.data && err.data.error ? err.data.error.message : 'Failed to load active found items');
@@ -710,7 +776,7 @@ angular.module('campusHelpdesk', ['ngRoute'])
 
     self.load = function () {
       Api.get('/claims').then(function (resp) {
-        self.items = resp.data.claims || [];
+        self.items = (ApiResponse.unwrap(resp).claims) || [];
         self.items.forEach(function (cl) {
           // Backend populates `claimedBy` without an `id` field; normalize for template.
           if (cl.claimedBy && cl.claimedBy._id) cl.claimedBy.id = cl.claimedBy._id;
@@ -790,14 +856,46 @@ angular.module('campusHelpdesk', ['ngRoute'])
       self.load();
     });
   })
-  .controller('ProfileController', function ($scope, Api) {
+  .controller('ProfileController', function ($scope, Api, ApiResponse) {
     var self = this;
     self.user = {};
     self.activity = {};
 
     Api.get('/auth/me').then(function (resp) {
-      self.user = resp.data.user || {};
-      self.activity = resp.data.activity || {};
+      var data = ApiResponse.unwrap(resp) || {};
+      self.user = data.user || {};
+      self.activity = data.activity || {};
     });
+  })
+  .controller('AdminDashboardController', function ($scope, Api, ApiResponse, TokenService, JwtService, UiFeedback) {
+    var self = this;
+    self.loading = false;
+    self.allowed = false;
+    self.analytics = { complaintsPerCategory: [], complaintsPerStatus: [] };
+
+    var decoded = JwtService.decode(TokenService.getToken());
+    self.allowed = decoded && decoded.role === 'admin';
+
+    self.maxCount = function (arr) {
+      if (!arr || !arr.length) return 1;
+      return Math.max.apply(null, arr.map(function (x) { return x.count || 0; })) || 1;
+    };
+
+    self.load = function () {
+      if (!self.allowed) {
+        UiFeedback.setError('Admin access required.');
+        return;
+      }
+      self.loading = true;
+      Api.get('/complaints/analytics').then(function (resp) {
+        self.analytics = ApiResponse.unwrap(resp) || self.analytics;
+      }).catch(function (err) {
+        UiFeedback.setError(err && err.data && err.data.error ? err.data.error.message : 'Failed to load analytics');
+      }).finally(function () {
+        self.loading = false;
+      });
+    };
+
+    self.load();
   });
 

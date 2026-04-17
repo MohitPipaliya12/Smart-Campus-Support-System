@@ -1,0 +1,134 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Calibri;}{\f1 Consolas;}}
+{\colortbl;\red31\green41\blue55;\red79\green70\blue229;\red107\green114\blue128;\red220\green38\blue38;\red16\green185\blue129;}
+\fs24
+\pard\sa200\b\cf1 Smart Campus Support System\par
+\pard\sa120\b0\cf3 Academic Project Documentation (AngularJS + Node.js/Express + MongoDB)\par
+\pard\sa200\cf3 Date: April 2026\par
+
+\pard\sa240\b\cf1 1. Project Overview\par
+\pard\sa120\b0\cf1 Smart Campus Support System is a full-stack web application that centralizes:\par
+\pard\sa80\cf1 \bullet\~ Complaint/issue reporting and tracking (campus services)\par
+\pard\sa80\cf1 \bullet\~ Lost \& Found reporting with claim workflow\par
+\pard\sa120\cf1 The system uses an AngularJS single-page frontend, a RESTful Express backend, and MongoDB for persistence.\par
+
+\pard\sa240\b\cf1 2. Technology Stack\par
+\pard\sa80\b0\cf1 \bullet\~ Frontend: AngularJS 1.8 (ngRoute)\par
+\pard\sa80\cf1 \bullet\~ Backend: Node.js + Express\par
+\pard\sa80\cf1 \bullet\~ Database: MongoDB (Mongoose ODM)\par
+\pard\sa80\cf1 \bullet\~ Auth: JWT (Bearer token)\par
+
+\pard\sa240\b\cf1 3. Roles and Access Control (RBAC)\par
+\pard\sa120\b0\cf1 Roles supported:\par
+\pard\sa80\cf1 \bullet\~ Student (default)\par
+\pard\sa80\cf1 \bullet\~ Staff\par
+\pard\sa80\cf1 \bullet\~ Admin\par
+\pard\sa120\cf1 Key rules enforced:\par
+\pard\sa80\cf1 \bullet\~ Students submit complaints and manage their own complaint details.\par
+\pard\sa80\cf1 \bullet\~ Staff/Admin manage complaints: assign and update workflow status.\par
+\pard\sa80\cf1 \bullet\~ Admins cannot post complaints.\par
+\pard\sa80\cf1 \bullet\~ Students can view only their own complaints (staff/admin can view all complaints).\par
+
+\pard\sa240\b\cf1 4. Core Modules\par
+\pard\sa120\b0\cf1 4.1 Complaint Management\par
+\pard\sa80\cf1 \bullet\~ Create complaints (students)\par
+\pard\sa80\cf1 \bullet\~ Prioritization: low/medium/high (computed from category and optional urgency)\par
+\pard\sa80\cf1 \bullet\~ Support/upvote complaints (one support per user, cannot support own complaint)\par
+\pard\sa80\cf1 \bullet\~ Workflow status timeline stored in database\par
+\pard\sa120\cf1 Complaint workflow states:\par
+\pard\sa80\cf1 \bullet\~ created \u8594\~ assigned \u8594\~ in\_progress \u8594\~ resolved\par
+
+\pard\sa120\cf1 4.2 Lost \& Found\par
+\pard\sa80\cf1 \bullet\~ Report lost items and post found items\par
+\pard\sa80\cf1 \bullet\~ Items can be closed/reopened (preferred over deletion)\par
+\pard\sa120\cf1 4.3 Claims Workflow\par
+\pard\sa80\cf1 \bullet\~ Students can claim active items (no self-claims)\par
+\pard\sa80\cf1 \bullet\~ Staff/Admin review and update claim status\par
+\pard\sa80\cf1 \bullet\~ Approved/resolved claims auto-close the linked item\par
+
+\pard\sa240\b\cf1 5. Database Schema (MongoDB)\par
+\pard\sa120\b0\cf1 Collections:\par
+\pard\sa80\cf1 \bullet\~ users\par
+\pard\sa80\cf1 \bullet\~ complaints\par
+\pard\sa80\cf1 \bullet\~ complaintsupports\par
+\pard\sa80\cf1 \bullet\~ lostitems\par
+\pard\sa80\cf1 \bullet\~ founditems\par
+\pard\sa80\cf1 \bullet\~ claims\par
+
+\pard\sa120\b\cf1 5.1 complaints (key fields)\par
+\pard\sa80\b0\cf1 \bullet\~ title (string), description (string)\par
+\pard\sa80\cf1 \bullet\~ category (maintenance | infrastructure | services | other)\par
+\pard\sa80\cf1 \bullet\~ location (string)\par
+\pard\sa80\cf1 \bullet\~ priority (low | medium | high)\par
+\pard\sa80\cf1 \bullet\~ status (created | assigned | in\_progress | resolved)\par
+\pard\sa80\cf1 \bullet\~ assignedTo (User reference)\par
+\pard\sa80\cf1 \bullet\~ supportsCount (number)\par
+\pard\sa80\cf1 \bullet\~ timeline (array of status events with timestamps)\par
+\pard\sa80\cf1 \bullet\~ timestamps: createdAt, updatedAt\par
+
+\pard\sa120\cf1 Efficient querying is supported via indexes (status/category/createdAt, assignedTo/status, priority, and text search on title/description/location).\par
+
+\pard\sa240\b\cf1 6. API Design\par
+\pard\sa120\b0\cf1 Base URL:\par
+\pard\sa80\cf1 \f1 http://localhost:5000/api\f0\par
+\pard\sa120\cf1 Authentication header:\par
+\pard\sa80\cf1 \f1 Authorization: Bearer <token>\f0\par
+
+\pard\sa160\b\cf1 6.1 Standard Success Response Format\par
+\pard\sa80\b0\cf1 All updated endpoints follow a consistent shape:\par
+\pard\sa80\cf1 \f1 \{\par
+\pard\sa80\cf1 \~\~"success": true,\par
+\pard\sa80\cf1 \~\~"message": "Human readable message",\par
+\pard\sa80\cf1 \~\~"data": \{...\}\par
+\pard\sa80\cf1 \}\f0\par
+
+\pard\sa160\b\cf1 6.2 Complaint Endpoints (high value)\par
+\pard\sa80\b0\cf1 \bullet\~ GET /complaints \u8211\~ list (supports filters + search)\par
+\pard\sa80\cf1 \bullet\~ POST /complaints \u8211\~ create (students only)\par
+\pard\sa80\cf1 \bullet\~ GET /complaints/:id \u8211\~ read\par
+\pard\sa80\cf1 \bullet\~ PUT /complaints/:id \u8211\~ update details (creator student only)\par
+\pard\sa80\cf1 \bullet\~ PUT /complaints/:id/assign \u8211\~ assign (staff/admin)\par
+\pard\sa80\cf1 \bullet\~ PUT /complaints/:id/status \u8211\~ update workflow status (staff/admin)\par
+\pard\sa80\cf1 \bullet\~ GET /complaints/summary \u8211\~ dashboard counters\par
+\pard\sa80\cf1 \bullet\~ GET /complaints/analytics \u8211\~ admin analytics\par
+
+\pard\sa80\cf1 Filters supported by GET /complaints:\par
+\pard\sa80\cf1 \bullet\~ status, category, priority, assignedTo, q (text search)\par
+
+\pard\sa240\b\cf1 7. Frontend Features\par
+\pard\sa120\b0\cf1 7.1 Student Dashboard\par
+\pard\sa80\cf1 \bullet\~ Quick counters: total, pending, resolved complaints\par
+\pard\sa80\cf1 \bullet\~ Recent activity cards for complaints/lost/found/claims\par
+\pard\sa120\cf1 7.2 Complaints Page Enhancements\par
+\pard\sa80\cf1 \bullet\~ Filters by status and category\par
+\pard\sa80\cf1 \bullet\~ Search box (title/description/location)\par
+\pard\sa80\cf1 \bullet\~ Loading indicators and global notifications\par
+\pard\sa80\cf1 \bullet\~ Role behavior: staff/admin cannot see complaint submission form\par
+\pard\sa120\cf1 7.3 Admin Dashboard (Analytics)\par
+\pard\sa80\cf1 \bullet\~ Complaints per category\par
+\pard\sa80\cf1 \bullet\~ Complaints per resolution status\par
+\pard\sa80\cf1 \bullet\~ Simple bar-style charts for an academic-level implementation\par
+
+\pard\sa240\b\cf1 8. Setup and Run Instructions\par
+\pard\sa120\b0\cf1 Prerequisites:\par
+\pard\sa80\cf1 \bullet\~ Node.js installed\par
+\pard\sa80\cf1 \bullet\~ MongoDB running locally (or provide connection URI)\par
+\pard\sa120\cf1 Steps:\par
+\pard\sa80\cf1 1) Configure backend environment in \f1 backend/.env\f0 (PORT, MONGODB\_URI, JWT\_SECRET).\par
+\pard\sa80\cf1 2) Install backend dependencies:\par
+\pard\sa80\cf1 \f1 \~\~cd backend\par
+\pard\sa80\cf1 \~\~npm install\f0\par
+\pard\sa80\cf1 3) Start server:\par
+\pard\sa80\cf1 \f1 \~\~npm start\f0\par
+\pard\sa120\cf1 The frontend is served by the backend at:\par
+\pard\sa80\cf1 \f1 http://localhost:5000/\f0\par
+
+\pard\sa240\b\cf1 9. API Testing (Postman)\par
+\pard\sa120\b0\cf1 A sample Postman collection is included:\par
+\pard\sa80\cf1 \f1 postman/Smart-Campus-Support.postman_collection.json\f0\par
+\pard\sa120\cf1 It covers auth, complaint creation, summary, analytics, assignment, and status updates.\par
+
+\pard\sa240\b\cf1 10. Conclusion\par
+\pard\sa120\b0\cf1 This project demonstrates a clean full-stack CRUD application with JWT authentication, RBAC, modular Express controllers, and a MongoDB data model supporting prioritization and timeline-based complaint tracking. The dashboards provide a user-friendly academic-level view of complaint volumes and resolution progress.\par
+}
+

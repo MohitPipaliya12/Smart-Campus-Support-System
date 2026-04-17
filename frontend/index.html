@@ -14,6 +14,7 @@
     <div class="nav" ng-if="root.isLoggedIn">
       <a href="#!/dashboard">Dashboard</a>
       <a href="#!/complaints">Complaints</a>
+      <a href="#!/admin-dashboard" ng-if="root.getRole() === 'admin'">Admin</a>
       <a href="#!/lost-items">Lost</a>
       <a href="#!/found-items">Found</a>
       <a href="#!/claims">Claims</a>
@@ -110,6 +111,20 @@
       <div class="card">
         <h2>Smart Campus Support System</h2>
         <p class="muted">Quick overview of your campus helpdesk activity and the latest entries across each module.</p>
+
+        <div class="muted" ng-if="dash.loading">Loading dashboard…</div>
+
+        <div class="row dashboard-grid" style="margin-top:14px">
+          <div class="col-6 dashboard-stat">
+            <h3>Complaints Summary</h3>
+            <div class="muted">
+              Total: <b>{{dash.complaintSummary.total || 0}}</b> |
+              Pending: <b>{{dash.complaintSummary.pending || 0}}</b> |
+              Resolved: <b>{{dash.complaintSummary.resolved || 0}}</b>
+            </div>
+            <a href="#!/complaints">View complaints</a>
+          </div>
+        </div>
 
         <div class="row dashboard-grid">
           <div class="col-6 dashboard-stat">
@@ -224,7 +239,10 @@
         <div class="row">
           <div class="col-6">
             <h3>Create Complaint</h3>
-            <form ng-submit="complaints.create()">
+            <div class="muted" ng-if="!complaints.canCreate">
+              Only student accounts can submit complaints. Staff/admin can assign and manage complaints from the list.
+            </div>
+            <form ng-if="complaints.canCreate" ng-submit="complaints.create()">
               <label>Title</label>
               <input type="text" ng-model="complaints.form.title" required />
 
@@ -254,6 +272,21 @@
               Support complaints you are also facing to help prioritize fixes.
             </div>
 
+            <div class="row dashboard-grid" style="margin-top:12px">
+              <div class="col-6 dashboard-stat">
+                <div class="muted">Total</div>
+                <div style="font-size:22px; font-weight:700">{{complaints.summary.total || 0}}</div>
+              </div>
+              <div class="col-6 dashboard-stat">
+                <div class="muted">Pending</div>
+                <div style="font-size:22px; font-weight:700">{{complaints.summary.pending || 0}}</div>
+              </div>
+              <div class="col-6 dashboard-stat">
+                <div class="muted">Resolved</div>
+                <div style="font-size:22px; font-weight:700">{{complaints.summary.resolved || 0}}</div>
+              </div>
+            </div>
+
             <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
               <label style="margin:0">Sort</label>
               <select ng-model="complaints.sortBy" ng-change="complaints.load()">
@@ -261,10 +294,30 @@
                 <option value="supports">Supports</option>
                 <option value="importance">Importance</option>
               </select>
+              <label style="margin:0">Status</label>
+              <select ng-model="complaints.statusFilter" ng-change="complaints.load(); complaints.loadSummary()">
+                <option value="">All</option>
+                <option value="created">created</option>
+                <option value="assigned">assigned</option>
+                <option value="in_progress">in_progress</option>
+                <option value="resolved">resolved</option>
+              </select>
+              <label style="margin:0">Category</label>
+              <select ng-model="complaints.categoryFilter" ng-change="complaints.load(); complaints.loadSummary()">
+                <option value="">All</option>
+                <option value="maintenance">maintenance</option>
+                <option value="infrastructure">infrastructure</option>
+                <option value="services">services</option>
+                <option value="other">other</option>
+              </select>
+              <label style="margin:0">Search</label>
+              <input style="max-width:220px" type="text" ng-model="complaints.searchText" ng-change="complaints.load()" placeholder="title, description, location" />
               <label style="margin:0">Min supports</label>
               <input style="max-width:120px" type="number" min="0" ng-model="complaints.minSupports" ng-change="complaints.load()" placeholder="0" />
-              <button class="secondary" ng-click="complaints.load()">Refresh</button>
+              <button class="secondary" ng-click="complaints.load(); complaints.loadSummary()">Refresh</button>
             </div>
+
+            <div class="muted" style="margin-top:10px" ng-if="complaints.loading">Loading complaints…</div>
 
             <div ng-if="complaints.items.length === 0" class="muted" style="margin-top:10px">
               No complaints yet.
@@ -281,6 +334,26 @@
 
               <div class="muted" style="margin-top:6px">
                 {{c.description}}
+              </div>
+
+              <div ng-if="complaints.isStaff" style="margin-top:10px">
+                <div class="muted">
+                  Assigned to:
+                  <b ng-if="c.assignedTo">{{c.assignedTo.name}}</b>
+                  <span ng-if="!c.assignedTo">Not assigned</span>
+                  | Priority: <b>{{c.priority || 'low'}}</b>
+                </div>
+                <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center">
+                  <button class="secondary" ng-click="complaints.assignToMe(c)">Assign to me</button>
+                  <label style="margin:0">Update status</label>
+                  <select ng-model="c.editNextStatus">
+                    <option value="created">created</option>
+                    <option value="assigned">assigned</option>
+                    <option value="in_progress">in_progress</option>
+                    <option value="resolved">resolved</option>
+                  </select>
+                  <button class="secondary" ng-click="complaints.setStatus(c)">Save</button>
+                </div>
               </div>
 
               <div style="margin-top:10px">
@@ -303,15 +376,6 @@
                 <textarea ng-model="c.editDescription" rows="2"></textarea>
 
                 <div style="margin-top:10px">
-                  <label>Status (close when resolved)</label>
-                  <select ng-model="c.editStatus">
-                    <option value="submitted">submitted</option>
-                    <option value="in_progress">in_progress</option>
-                    <option value="resolved">resolved</option>
-                  </select>
-                </div>
-
-                <div style="margin-top:10px">
                   <button ng-click="complaints.update(c._id)">Update</button>
                 </div>
               </div>
@@ -328,6 +392,49 @@
               </div>
 
               <hr />
+            </div>
+          </div>
+        </div>
+      </div>
+    </script>
+
+    <script type="text/ng-template" id="views/admin-dashboard.html">
+      <div class="card">
+        <h2>Admin Dashboard</h2>
+        <p class="muted">Simple analytics for monitoring complaint volume and resolution status.</p>
+
+        <div class="muted" ng-if="adminDash.loading">Loading analytics…</div>
+
+        <div class="error" ng-if="!adminDash.allowed">
+          Admin access required.
+        </div>
+
+        <div ng-if="adminDash.allowed">
+          <div class="card dashboard-section">
+            <h3>Complaints per Category</h3>
+            <div class="muted" ng-if="adminDash.analytics.complaintsPerCategory.length === 0">No data yet.</div>
+            <div ng-repeat="x in adminDash.analytics.complaintsPerCategory" style="margin-top:10px">
+              <div style="display:flex; justify-content:space-between; gap:12px">
+                <strong>{{x.category}}</strong>
+                <span class="muted">{{x.count}}</span>
+              </div>
+              <div style="height:10px; background: rgba(148,163,184,0.25); border-radius:999px; overflow:hidden; margin-top:6px">
+                <div style="height:10px; background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%); width: {{(x.count / adminDash.maxCount(adminDash.analytics.complaintsPerCategory)) * 100}}%"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card dashboard-section">
+            <h3>Complaints per Status</h3>
+            <div class="muted" ng-if="adminDash.analytics.complaintsPerStatus.length === 0">No data yet.</div>
+            <div ng-repeat="x in adminDash.analytics.complaintsPerStatus" style="margin-top:10px">
+              <div style="display:flex; justify-content:space-between; gap:12px">
+                <strong>{{x.status}}</strong>
+                <span class="muted">{{x.count}}</span>
+              </div>
+              <div style="height:10px; background: rgba(148,163,184,0.25); border-radius:999px; overflow:hidden; margin-top:6px">
+                <div style="height:10px; background: linear-gradient(90deg, #10b981 0%, #3b82f6 100%); width: {{(x.count / adminDash.maxCount(adminDash.analytics.complaintsPerStatus)) * 100}}%"></div>
+              </div>
             </div>
           </div>
         </div>

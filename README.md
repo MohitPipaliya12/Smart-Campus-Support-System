@@ -178,6 +178,8 @@ http://localhost:5000/api
 * CRUD operations
 * Support / unsupport
 * Admin importance
+* Priority + timeline status flow (created → assigned → in_progress → resolved)
+* Summary + analytics endpoints for dashboards
 
 ### Lost / Found Items
 
@@ -193,6 +195,22 @@ http://localhost:5000/api
 ---
 
 ## 🧪 API Request / Response Examples
+
+### ✅ Standard Success Response Format
+
+Most endpoints return:
+
+```json
+{
+  "success": true,
+  "message": "Human readable message",
+  "data": {}
+}
+```
+
+### 🧪 Postman Collection
+
+Import `postman/Smart-Campus-Support.postman_collection.json` for quick API testing (includes auth, complaints, summary, analytics, assign/status).
 
 ### 🔐 Login
 
@@ -336,9 +354,13 @@ Authorization: Bearer <token>
 ## 📌 Future Improvements
 
 * Real-time notifications (WebSockets)
+* Integrate chat system between student and admin/staff for better communication
 * Image upload support
 * Email/SMS alerts
+* Enable feedback and rating system after complaint resolution
+* Enhance dashboard with advanced analytics (resolution time, staff performance)
 * Admin analytics dashboard
+* Improve security with two-factor authentication (2FA)
 * Mobile app version
 
 ---

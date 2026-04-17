@@ -1,4 +1,4 @@
-# Campus Helpdesk System - Project Report (Template)
+# Campus Helpdesk System - Project Report
 
 ## 1. Problem Statement
 Campuses require a practical way to manage:
@@ -112,7 +112,7 @@ The API returns consistent JSON on errors:
 - `404` for missing resources
 - `500` for unexpected server issues
 
-## 6. Screenshots (Insert Your Images)
+## 6. Screenshots 
 Add screenshots of:
 1. Signup page
 2. Login page
@@ -122,6 +122,77 @@ Add screenshots of:
 6. Post Found Item + Browse Active Found Items
 7. Submit Claim + Update by staff
 
+
+---
+
+## 6. 🌐 Local Demo & 📸 Screenshots
+
+🔗 **Local Application:** [Smart Campus Support System](http://localhost:5000/)
+
+---
+
+### 📸 Screenshots
+
+#### 🔐 Sign Up
+
+![Sign Up](./screenshots/signup.png)
+
+#### 🔐 Login Page
+
+![Login](./screenshots/login.png)
+
+#### 📊 Dashboard
+
+![Dashboard](./screenshots/dashboard.png)
+![Dashboard](./screenshots/dashboard1.png)
+
+#### 📢 Complaints Page
+
+![Complaints](./screenshots/complaints.png)
+![Complaints](./screenshots/complaintsadd.png)
+
+#### 🎒 Lost
+
+![LostFound](./screenshots/lost.png)
+![LostFound](./screenshots/lostadd.png)
+
+#### 🎒 Found
+
+![LostFound](./screenshots/found.png)
+![LostFound](./screenshots/foundadd.png)
+
+#### 🔄 Claims Management
+
+![Claims](./screenshots/claims.png)
+![Claims](./screenshots/claimsadd.png)
+
+---
+
+### 🧪 Default Admin (Seeding)
+
+If enabled in `.env`:
+
+```
+SEED_STAFF=true
+DEFAULT_STAFF_EMAIL=admin@example.com
+DEFAULT_STAFF_PASSWORD=admin123
+```
+
+Creates a default admin user on server start.
+
+#### 🔄 Admin Profile
+
+![Admin Profile](./screenshots/admin_profile.png)
+
+#### 🔄 Give Importance
+
+![Give Importance](./screenshots/give_importance.png)
+
+#### 🔄 Update Claim Status
+
+![Update Claim Status](./screenshots/update_claim_status.png)
+
+---
+
 ## 7. Conclusion
 The Campus Helpdesk System integrates complaint tracking and lost/found management into a single authenticated platform. By combining AngularJS (client) with Node.js/Express (server) and MongoDB (database), the project demonstrates RESTful HTTP communication, asynchronous client-server interaction, MVC design principles, and CRUD-based resource management.
-

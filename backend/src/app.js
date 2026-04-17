@@ -8,10 +8,18 @@ const { notFoundHandler, errorHandler } = require('./middleware/errorHandlers');
 
 const app = express();
 
+// Avoid 304 responses for JSON APIs (Angular expects a body).
+app.set('etag', false);
+
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('dev'));
 
+// Prevent caching of API responses (summary/analytics must always return JSON)
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 app.use('/api', apiRoutes);
 
 // Serve AngularJS frontend (no separate dev server needed)

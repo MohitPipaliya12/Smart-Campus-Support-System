@@ -1,5 +1,6 @@
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
+const sendResponse = require('../utils/sendResponse');
 
 const LostItem = require('../models/LostItem');
 
@@ -19,7 +20,7 @@ const listLostItems = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .populate('createdBy', 'name email role');
 
-  res.status(200).json({ success: true, lostItems });
+  return sendResponse(res, { statusCode: 200, message: 'Lost items fetched', data: { lostItems } });
 });
 
 const getLostItemById = asyncHandler(async (req, res) => {
@@ -32,7 +33,7 @@ const getLostItemById = asyncHandler(async (req, res) => {
   const isActive = String(lostItem.status) === 'active';
   if (!isOwner && !isActive) throw new ApiError(403, 'FORBIDDEN', 'You do not have access to this lost item');
 
-  res.status(200).json({ success: true, lostItem });
+  return sendResponse(res, { statusCode: 200, message: 'Lost item fetched', data: { lostItem } });
 });
 
 const createLostItem = asyncHandler(async (req, res) => {
@@ -54,10 +55,8 @@ const createLostItem = asyncHandler(async (req, res) => {
     createdBy: req.user.id,
   });
 
-  res.status(201).json({
-    success: true,
-    lostItem: await LostItem.findById(lostItem._id).populate('createdBy', 'name email role'),
-  });
+  const populated = await LostItem.findById(lostItem._id).populate('createdBy', 'name email role');
+  return sendResponse(res, { statusCode: 201, message: 'Lost item created', data: { lostItem: populated } });
 });
 
 const updateLostItem = asyncHandler(async (req, res) => {
@@ -88,10 +87,8 @@ const updateLostItem = asyncHandler(async (req, res) => {
 
   await lostItem.save();
 
-  res.status(200).json({
-    success: true,
-    lostItem: await LostItem.findById(lostItem._id).populate('createdBy', 'name email role'),
-  });
+  const populated = await LostItem.findById(lostItem._id).populate('createdBy', 'name email role');
+  return sendResponse(res, { statusCode: 200, message: 'Lost item updated', data: { lostItem: populated } });
 });
 
 const deleteLostItem = asyncHandler(async (req, res) => {
@@ -104,7 +101,7 @@ const deleteLostItem = asyncHandler(async (req, res) => {
   if (!isOwner) throw new ApiError(403, 'FORBIDDEN', 'Only the creator can delete this lost item');
 
   await LostItem.deleteOne({ _id: lostItem._id });
-  res.status(200).json({ success: true, message: 'Lost item deleted' });
+  return sendResponse(res, { statusCode: 200, message: 'Lost item deleted', data: null });
 });
 
 module.exports = {

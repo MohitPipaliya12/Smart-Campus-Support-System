@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
+const sendResponse = require('../utils/sendResponse');
 const User = require('../models/User');
 const LostItem = require('../models/LostItem');
 const FoundItem = require('../models/FoundItem');
@@ -65,10 +66,10 @@ const signup = asyncHandler(async (req, res) => {
     }
   );
 
-  res.status(201).json({
-    success: true,
-    token,
-    user: toPublicUser(user),
+  return sendResponse(res, {
+    statusCode: 201,
+    message: 'Signup successful',
+    data: { token, user: toPublicUser(user) },
   });
 });
 
@@ -99,10 +100,10 @@ const login = asyncHandler(async (req, res) => {
     }
   );
 
-  res.status(200).json({
-    success: true,
-    token,
-    user: toPublicUser(user),
+  return sendResponse(res, {
+    statusCode: 200,
+    message: 'Login successful',
+    data: { token, user: toPublicUser(user) },
   });
 });
 
@@ -119,15 +120,18 @@ const me = asyncHandler(async (req, res) => {
     Claim.countDocuments({ claimedBy: req.user.id }),
   ]);
 
-  res.status(200).json({
-    success: true,
-    user: toPublicUser(user),
-    activity: {
-      lostItemsReported: lostCount,
-      foundItemsPosted: foundCount,
-      complaintsRaised: complaintsCount,
-      supportsGiven: supportsGivenCount,
-      claimsSubmitted: claimsCount,
+  return sendResponse(res, {
+    statusCode: 200,
+    message: 'Profile fetched',
+    data: {
+      user: toPublicUser(user),
+      activity: {
+        lostItemsReported: lostCount,
+        foundItemsPosted: foundCount,
+        complaintsRaised: complaintsCount,
+        supportsGiven: supportsGivenCount,
+        claimsSubmitted: claimsCount,
+      },
     },
   });
 });

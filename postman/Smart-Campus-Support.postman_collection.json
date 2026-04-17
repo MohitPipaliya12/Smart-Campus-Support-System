@@ -1,0 +1,169 @@
+{
+  "info": {
+    "name": "Smart Campus Support System - API",
+    "description": "Sample Postman collection for academic-level testing.\n\nAll responses follow:\n{\n  \"success\": true|false,\n  \"message\": \"...\",\n  \"data\": { ... }\n}\n\nSet collection variables before running:\n- baseUrl (e.g. http://localhost:5000/api)\n- tokenStudent\n- tokenAdmin\n- complaintId",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "tokenStudent", "value": "" },
+    { "key": "tokenAdmin", "value": "" },
+    { "key": "complaintId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Signup (student)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/signup",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Student One\",\n  \"email\": \"student1@example.com\",\n  \"password\": \"password123\",\n  \"department\": \"CSE\",\n  \"year\": 6\n}"
+            }
+          }
+        },
+        {
+          "name": "Login (student) -> save tokenStudent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('tokenStudent', json && json.data ? json.data.token : '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"student1@example.com\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login (admin) -> save tokenAdmin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('tokenAdmin', json && json.data ? json.data.token : '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"admin123\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Complaints (student)",
+      "item": [
+        {
+          "name": "Create complaint (student only) -> save complaintId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('complaintId', json && json.data && json.data.complaint ? json.data.complaint._id : '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/complaints",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"WiFi not working\",\n  \"description\": \"Internet is down in Hostel A\",\n  \"category\": \"infrastructure\",\n  \"location\": \"Hostel A\",\n  \"urgency\": \"high\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List my complaints (filters + search)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenStudent}}" }],
+            "url": "{{baseUrl}}/complaints?status=created&category=infrastructure&q=wifi&sortBy=date&order=desc"
+          }
+        },
+        {
+          "name": "Summary (my complaints for student)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenStudent}}" }],
+            "url": "{{baseUrl}}/complaints/summary"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Complaints (admin/staff)",
+      "item": [
+        {
+          "name": "Analytics (admin only)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAdmin}}" }],
+            "url": "{{baseUrl}}/complaints/analytics"
+          }
+        },
+        {
+          "name": "Assign complaint to self (admin/staff)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAdmin}}" }
+            ],
+            "url": "{{baseUrl}}/complaints/{{complaintId}}/assign",
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        },
+        {
+          "name": "Update complaint status (admin/staff)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAdmin}}" }
+            ],
+            "url": "{{baseUrl}}/complaints/{{complaintId}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"in_progress\",\n  \"note\": \"Technician assigned\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+

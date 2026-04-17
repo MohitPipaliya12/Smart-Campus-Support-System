@@ -1,5 +1,6 @@
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
+const sendResponse = require('../utils/sendResponse');
 
 const Claim = require('../models/Claim');
 const LostItem = require('../models/LostItem');
@@ -26,7 +27,7 @@ const listClaims = asyncHandler(async (req, res) => {
     .populate('lostItemId')
     .populate('foundItemId');
 
-  res.status(200).json({ success: true, claims });
+  return sendResponse(res, { statusCode: 200, message: 'Claims fetched', data: { claims } });
 });
 
 const getClaimById = asyncHandler(async (req, res) => {
@@ -40,7 +41,7 @@ const getClaimById = asyncHandler(async (req, res) => {
   const allowed = isStaffOrAdmin(req.user.role) || String(claim.claimedBy._id) === String(req.user.id);
   if (!allowed) throw new ApiError(403, 'FORBIDDEN', 'You do not have access to this claim');
 
-  res.status(200).json({ success: true, claim });
+  return sendResponse(res, { statusCode: 200, message: 'Claim fetched', data: { claim } });
 });
 
 const createClaim = asyncHandler(async (req, res) => {
@@ -102,13 +103,11 @@ const createClaim = asyncHandler(async (req, res) => {
     claimStatus: 'pending',
   });
 
-  res.status(201).json({
-    success: true,
-    claim: await Claim.findById(claim._id)
-      .populate('claimedBy', 'name email role')
-      .populate('lostItemId')
-      .populate('foundItemId'),
-  });
+  const populated = await Claim.findById(claim._id)
+    .populate('claimedBy', 'name email role')
+    .populate('lostItemId')
+    .populate('foundItemId');
+  return sendResponse(res, { statusCode: 201, message: 'Claim created', data: { claim: populated } });
 });
 
 const updateClaim = asyncHandler(async (req, res) => {
@@ -150,13 +149,11 @@ const updateClaim = asyncHandler(async (req, res) => {
 
   await claim.save();
 
-  res.status(200).json({
-    success: true,
-    claim: await Claim.findById(claim._id)
-      .populate('claimedBy', 'name email role')
-      .populate('lostItemId')
-      .populate('foundItemId'),
-  });
+  const populated = await Claim.findById(claim._id)
+    .populate('claimedBy', 'name email role')
+    .populate('lostItemId')
+    .populate('foundItemId');
+  return sendResponse(res, { statusCode: 200, message: 'Claim updated', data: { claim: populated } });
 });
 
 const deleteClaim = asyncHandler(async (req, res) => {
@@ -171,7 +168,7 @@ const deleteClaim = asyncHandler(async (req, res) => {
   }
 
   await Claim.deleteOne({ _id: claim._id });
-  res.status(200).json({ success: true, message: 'Claim deleted' });
+  return sendResponse(res, { statusCode: 200, message: 'Claim deleted', data: null });
 });
 
 module.exports = {

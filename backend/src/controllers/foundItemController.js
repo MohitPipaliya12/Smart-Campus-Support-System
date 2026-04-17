@@ -1,5 +1,6 @@
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
+const sendResponse = require('../utils/sendResponse');
 
 const FoundItem = require('../models/FoundItem');
 
@@ -19,7 +20,7 @@ const listFoundItems = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .populate('createdBy', 'name email role');
 
-  res.status(200).json({ success: true, foundItems });
+  return sendResponse(res, { statusCode: 200, message: 'Found items fetched', data: { foundItems } });
 });
 
 const getFoundItemById = asyncHandler(async (req, res) => {
@@ -32,7 +33,7 @@ const getFoundItemById = asyncHandler(async (req, res) => {
   const isActive = String(foundItem.status) === 'active';
   if (!isOwner && !isActive) throw new ApiError(403, 'FORBIDDEN', 'You do not have access to this found item');
 
-  res.status(200).json({ success: true, foundItem });
+  return sendResponse(res, { statusCode: 200, message: 'Found item fetched', data: { foundItem } });
 });
 
 const createFoundItem = asyncHandler(async (req, res) => {
@@ -50,10 +51,8 @@ const createFoundItem = asyncHandler(async (req, res) => {
     createdBy: req.user.id,
   });
 
-  res.status(201).json({
-    success: true,
-    foundItem: await FoundItem.findById(foundItem._id).populate('createdBy', 'name email role'),
-  });
+  const populated = await FoundItem.findById(foundItem._id).populate('createdBy', 'name email role');
+  return sendResponse(res, { statusCode: 201, message: 'Found item created', data: { foundItem: populated } });
 });
 
 const updateFoundItem = asyncHandler(async (req, res) => {
@@ -82,10 +81,8 @@ const updateFoundItem = asyncHandler(async (req, res) => {
 
   await foundItem.save();
 
-  res.status(200).json({
-    success: true,
-    foundItem: await FoundItem.findById(foundItem._id).populate('createdBy', 'name email role'),
-  });
+  const populated = await FoundItem.findById(foundItem._id).populate('createdBy', 'name email role');
+  return sendResponse(res, { statusCode: 200, message: 'Found item updated', data: { foundItem: populated } });
 });
 
 const deleteFoundItem = asyncHandler(async (req, res) => {
@@ -98,7 +95,7 @@ const deleteFoundItem = asyncHandler(async (req, res) => {
   if (!isOwner) throw new ApiError(403, 'FORBIDDEN', 'Only the creator can delete this found item');
 
   await FoundItem.deleteOne({ _id: foundItem._id });
-  res.status(200).json({ success: true, message: 'Found item deleted' });
+  return sendResponse(res, { statusCode: 200, message: 'Found item deleted', data: null });
 });
 
 module.exports = {
