@@ -272,21 +272,6 @@
               Support complaints you are also facing to help prioritize fixes.
             </div>
 
-            <div class="row dashboard-grid" style="margin-top:12px">
-              <div class="col-6 dashboard-stat">
-                <div class="muted">Total</div>
-                <div style="font-size:22px; font-weight:700">{{complaints.summary.total || 0}}</div>
-              </div>
-              <div class="col-6 dashboard-stat">
-                <div class="muted">Pending</div>
-                <div style="font-size:22px; font-weight:700">{{complaints.summary.pending || 0}}</div>
-              </div>
-              <div class="col-6 dashboard-stat">
-                <div class="muted">Resolved</div>
-                <div style="font-size:22px; font-weight:700">{{complaints.summary.resolved || 0}}</div>
-              </div>
-            </div>
-
             <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
               <label style="margin:0">Sort</label>
               <select ng-model="complaints.sortBy" ng-change="complaints.load()">
@@ -295,7 +280,7 @@
                 <option value="importance">Importance</option>
               </select>
               <label style="margin:0">Status</label>
-              <select ng-model="complaints.statusFilter" ng-change="complaints.load(); complaints.loadSummary()">
+              <select ng-model="complaints.statusFilter" ng-change="complaints.load()">
                 <option value="">All</option>
                 <option value="created">created</option>
                 <option value="assigned">assigned</option>
@@ -303,7 +288,7 @@
                 <option value="resolved">resolved</option>
               </select>
               <label style="margin:0">Category</label>
-              <select ng-model="complaints.categoryFilter" ng-change="complaints.load(); complaints.loadSummary()">
+              <select ng-model="complaints.categoryFilter" ng-change="complaints.load()">
                 <option value="">All</option>
                 <option value="maintenance">maintenance</option>
                 <option value="infrastructure">infrastructure</option>
@@ -314,7 +299,7 @@
               <input style="max-width:220px" type="text" ng-model="complaints.searchText" ng-change="complaints.load()" placeholder="title, description, location" />
               <label style="margin:0">Min supports</label>
               <input style="max-width:120px" type="number" min="0" ng-model="complaints.minSupports" ng-change="complaints.load()" placeholder="0" />
-              <button class="secondary" ng-click="complaints.load(); complaints.loadSummary()">Refresh</button>
+              <button class="secondary" ng-click="complaints.load()">Refresh</button>
             </div>
 
             <div class="muted" style="margin-top:10px" ng-if="complaints.loading">Loading complaints…</div>

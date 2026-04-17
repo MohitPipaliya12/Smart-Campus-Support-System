@@ -333,7 +333,6 @@ angular.module('campusHelpdesk', ['ngRoute'])
     self.statusFilter = '';
     self.categoryFilter = '';
     self.searchText = '';
-    self.summary = { total: 0, pending: 0, resolved: 0 };
 
     var decoded = JwtService.decode(TokenService.getToken());
     self.userId = decoded && decoded.sub ? decoded.sub : null;
@@ -382,7 +381,6 @@ angular.module('campusHelpdesk', ['ngRoute'])
       Api.put('/complaints/' + c._id + '/assign', {}).then(function () {
         UiFeedback.setSuccess('Assigned.');
         self.load();
-        self.loadSummary();
       }).catch(function (err) {
         UiFeedback.setError(err && err.data && err.data.error ? err.data.error.message : 'Failed to assign complaint');
       });
@@ -393,24 +391,17 @@ angular.module('campusHelpdesk', ['ngRoute'])
       Api.put('/complaints/' + c._id + '/status', { status: c.editNextStatus }).then(function () {
         UiFeedback.setSuccess('Status updated.');
         self.load();
-        self.loadSummary();
       }).catch(function (err) {
         UiFeedback.setError(err && err.data && err.data.error ? err.data.error.message : 'Failed to update status');
       });
     };
 
-    self.loadSummary = function () {
-      Api.get('/complaints/summary').then(function (resp) {
-        self.summary = ApiResponse.unwrap(resp) || self.summary;
-      });
-    };
 
     self.create = function () {
       UiFeedback.clear();
       Api.post('/complaints', self.form).then(function () {
         self.form = { title: '', description: '', category: 'maintenance', location: '' };
         self.load();
-        self.loadSummary();
         UiFeedback.setSuccess('Complaint submitted successfully.');
       }).catch(function (err) {
         var msg = err && err.data && err.data.error && err.data.error.message ? err.data.error.message : 'Failed to submit';
@@ -442,7 +433,6 @@ angular.module('campusHelpdesk', ['ngRoute'])
       Api.put('/complaints/' + id, payload).then(function () {
         target._editing = false;
         self.load();
-        self.loadSummary();
         UiFeedback.setSuccess('Complaint updated successfully.');
       }).catch(function (err) {
         var msg = err && err.data && err.data.error && err.data.error.message ? err.data.error.message : 'Failed to update complaint';
@@ -454,7 +444,6 @@ angular.module('campusHelpdesk', ['ngRoute'])
       if (!confirm('Delete this complaint?')) return;
       Api.delete('/complaints/' + id).then(function () {
         self.load();
-        self.loadSummary();
         UiFeedback.setSuccess('Complaint deleted.');
       }).catch(function (err) {
         var msg = err && err.data && err.data.error && err.data.error.message ? err.data.error.message : 'Failed to delete complaint';
@@ -492,7 +481,6 @@ angular.module('campusHelpdesk', ['ngRoute'])
       if (!c || !c._id) return;
       Api.put('/complaints/' + c._id + '/importance', { importanceLevel: Number(c.editImportanceLevel) }).then(function () {
         self.load();
-        self.loadSummary();
         UiFeedback.setSuccess('Importance updated.');
       }).catch(function (err) {
         UiFeedback.setError(err && err.data && err.data.error ? err.data.error.message : 'Failed to set importance');
@@ -500,7 +488,6 @@ angular.module('campusHelpdesk', ['ngRoute'])
     };
 
     self.load();
-    self.loadSummary();
   })
   .controller('LostItemsController', function ($scope, Api, ApiResponse, TokenService, JwtService, $location, UiFeedback) {
     var self = this;

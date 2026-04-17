@@ -262,21 +262,39 @@ const getComplaintSummary = asyncHandler(async (req, res) => {
     baseMatch.createdBy = req.user.id;
   }
 
-  const match = baseMatch;
+  const { status, category, priority, assignedTo, q } = req.query || {};
+  const match = { ...baseMatch };
+  if (status) match.status = normalizeStatus(status);
+  if (category) match.category = String(category);
+  if (priority) match.priority = String(priority);
+  if (assignedTo) match.assignedTo = String(assignedTo);
+  if (q && String(q).trim().length) {
+    match.$text = { $search: String(q).trim() };
+  }
+  if (req.query && req.query.minSupports !== undefined && String(req.query.minSupports).length) {
+    const min = Number(req.query.minSupports);
+    if (Number.isNaN(min) || min < 0) {
+      throw new ApiError(400, 'VALIDATION_ERROR', 'minSupports must be a number >= 0');
+    }
+    match.supportsCount = { $gte: min };
+  }
+
   const counts = await Complaint.aggregate([
     { $match: match },
     {
-      $group: {
-        _id: '$status',
-        count: { $sum: 1 },
+      $project: {
+        statusNorm: {
+          $cond: [{ $eq: ['$status', 'submitted'] }, 'created', '$status'],
+        },
       },
     },
+    { $group: { _id: '$statusNorm', count: { $sum: 1 } } },
   ]);
 
   const map = { total: 0, pending: 0, resolved: 0, byStatus: {} };
   counts.forEach((x) => {
     const st = normalizeStatus(x._id);
-    map.byStatus[st] = x.count;
+    map.byStatus[st] = (map.byStatus[st] || 0) + x.count;
     map.total += x.count;
   });
   map.resolved = map.byStatus.resolved || 0;
